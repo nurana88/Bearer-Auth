@@ -44,9 +44,8 @@ func main() {
 func signin(w http.ResponseWriter, req *http.Request) {
 	var creds Credentials
 
-	err := json.NewDecoder(req.Body).Decode(&creds)
+	err := json.NewDecoder(req.Body).Decode(&creds) //reads what values was sent from request
 	if err != nil {
-		w.Header().Set("Content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Can not decode by Signing in"))
 		return
@@ -55,9 +54,8 @@ func signin(w http.ResponseWriter, req *http.Request) {
 	userPassword, ok := usersData[creds.Username]
 
 	if !ok || userPassword != creds.Password {
-		w.Header().Set("Content-type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(fmt.Sprintf(`{"message":"Password is not correct"}`)))
+		w.Write([]byte(fmt.Sprintf(`{"message":"credetials are not correct"}`)))
 		return
 	}
 
@@ -77,15 +75,27 @@ func signin(w http.ResponseWriter, req *http.Request) {
 
 	json.NewEncoder(w).Encode(tokenString)
 
-	http.SetCookie(w, &http.Cookie{
-		Name:    "token",
-		Value:   tokenString,
-		Expires: expirationTime,
-	})
+	cookie, err := req.Cookie("token")
+	if err != nil {
+		fmt.Println("cookie:", cookie, "err:", err)
+		cookie := &http.Cookie{
+			Name:    "token",
+			Value:   tokenString,
+			Expires: expirationTime,
+		}
+		http.SetCookie(w, cookie)
+		fmt.Println("cookie:", cookie, "err:", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, tokenString)))
 
 }
 
 func dashboard(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	bearerToken := req.Header.Get("Authorization")
 	token, err := ValidateToken(bearerToken)
 
