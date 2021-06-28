@@ -33,18 +33,22 @@ type Token struct {
 func main() {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/signin", signin).Methods("POST")
+	router.HandleFunc("/hello", helloWorld).Methods("POST")
 	router.HandleFunc("/user", dashboard).Methods("GET")
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, world"))
+	})
 
 	fmt.Println("Starting server on the port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", router))
 
 }
 
-func signin(w http.ResponseWriter, req *http.Request) {
+func helloWorld(w http.ResponseWriter, req *http.Request) {
+
 	var creds Credentials
 
-	err := json.NewDecoder(req.Body).Decode(&creds) //reads what values was sent from request
+	err := json.NewDecoder(req.Body).Decode(&creds)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Can not decode by Signing in"))
@@ -60,6 +64,7 @@ func signin(w http.ResponseWriter, req *http.Request) {
 	}
 
 	expirationTime := time.Now().Add(5 * time.Minute)
+
 	tokenClaim := Token{
 		Username: creds.Username,
 		StandardClaims: jwt.StandardClaims{
@@ -73,23 +78,18 @@ func signin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(tokenString)
-
-	cookie, err := req.Cookie("token")
-	if err != nil {
-		fmt.Println("cookie:", cookie, "err:", err)
-		cookie := &http.Cookie{
-			Name:    "token",
-			Value:   tokenString,
-			Expires: expirationTime,
-		}
-		http.SetCookie(w, cookie)
-		fmt.Println("cookie:", cookie, "err:", err)
+	cookie := &http.Cookie{
+		Name:    "token",
+		Value:   tokenString,
+		Expires: expirationTime,
+		//MaxAge: 300,
 	}
+	http.SetCookie(w, cookie)
 
 	w.Header().Set("Content-Type", "application/json")
 
 	w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, tokenString)))
+	// json.NewEncoder(w).Encode(tokenString)
 
 }
 
